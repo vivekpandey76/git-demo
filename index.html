@@ -292,10 +292,6 @@ function createItem(id,cls,text){
   document.getElementById(id).appendChild(el);
 }
 
-function removeItem(id){
-  const items=document.getElementById(id).querySelectorAll('.stack-item');
-  if(items.length>0) items[items.length-1].remove();
-}
 
 function addOutput(text){
   const line=document.createElement('div');
