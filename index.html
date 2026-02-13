@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Loop Visualizer</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4ecfb 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 9/16;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  padding: 24px;
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.5px;
+}
+
+/* ---------- CODE SECTION ---------- */
+
+.code-section {
+  background: #f1f5f9; /* softer gray */
+  border-radius: 18px;
+  padding: 16px;
+  height: 180px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+}
+
+.code-line {
+  color: #0f172a;      /* darker */
+  font-weight: 600;    /* semi-bold */
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;     /* slightly larger */
+  transition: all 0.3s ease;
+}
+
+.code-line.active {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+}
+
+.code-line.executed {
+  opacity: 0.4;
+}
+
+/* ---------- STACKS ---------- */
+
+.stacks-container {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.stack {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stack-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 10px;
+  padding: 6px;
+  border-radius: 10px;
+  color: #fff;
+}
+
+.call-stack-title { background: #ef4444; }
+.web-api-title { background: #3b82f6; }
+.microtask-title { background: #a855f7; }
+.macrotask-title { background: #f59e0b; }
+
+.stack-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.stack-item {
+  padding: 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  text-align: center;
+  color: #fff;
+  animation: slideIn 0.3s ease-out;
+  font-weight: 500;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+}
+
+.call-stack-item { background: #ef4444; }
+.web-api-item { background: #3b82f6; }
+.microtask-item { background: #a855f7; }
+.macrotask-item { background: #f59e0b; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- OUTPUT ---------- */
+
+.output-section {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  min-height: 100px;
+}
+
+.output-title {
+  color: #10b981;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.output-line {
+  color: #0f172a;
+  font-family: monospace;
+  font-size: 13px;
+  margin: 4px 0;
+  animation: fadeIn 0.4s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- BUTTONS ---------- */
+
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.next-btn {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: #fff;
+}
+
+.reset-btn {
+  background: linear-gradient(135deg, #ef4444, #f87171);
+  color: #fff;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="title">⚡ Event Loop Visualizer</div>
+
+  <div class="code-section">
+    <div class="code-line" data-step="0">console.log("1. Start")</div>
+    <div class="code-line" data-step="1">console.log("2. Sync task")</div>
+    <div class="code-line" data-step="2">setTimeout(() => {</div>
+    <div class="code-line" data-step="2">  console.log("5. Timeout")</div>
+    <div class="code-line" data-step="2">}, 0)</div>
+    <div class="code-line" data-step="3">Promise.resolve().then(() => {</div>
+    <div class="code-line" data-step="3">  console.log("4. Promise")</div>
+    <div class="code-line" data-step="3">})</div>
+    <div class="code-line" data-step="4">console.log("3. End sync")</div>
+  </div>
+
+  <div class="stacks-container">
+    <div class="stack">
+      <div class="stack-title call-stack-title">Call Stack</div>
+      <div class="stack-items" id="callStack"></div>
+    </div>
+    <div class="stack">
+      <div class="stack-title web-api-title">Web APIs</div>
+      <div class="stack-items" id="webApi"></div>
+    </div>
+  </div>
+
+  <div class="stacks-container">
+    <div class="stack">
+      <div class="stack-title microtask-title">Microtask Queue</div>
+      <div class="stack-items" id="microtask"></div>
+    </div>
+    <div class="stack">
+      <div class="stack-title macrotask-title">Macrotask Queue</div>
+      <div class="stack-items" id="macrotask"></div>
+    </div>
+  </div>
+
+  <div class="output-section">
+    <div class="output-title">📺 Console Output</div>
+    <div id="output"></div>
+  </div>
+
+  <div class="controls">
+    <button class="next-btn" id="nextBtn">Next Step ▶</button>
+    <button class="reset-btn" id="resetBtn">Reset ↺</button>
+  </div>
+</div>
+
+<script>
+const steps = [
+  { code:0, action:()=>addToCallStack('console.log("1. Start")') },
+  { code:0, action:()=>{removeFromCallStack(); addOutput('1. Start');}},
+  { code:1, action:()=>addToCallStack('console.log("2. Sync task")') },
+  { code:1, action:()=>{removeFromCallStack(); addOutput('2. Sync task');}},
+  { code:2, action:()=>addToCallStack('setTimeout(...)') },
+  { code:2, action:()=>{removeFromCallStack(); addToWebApi('Timer (0ms)');}},
+  { code:2, action:()=>{removeFromWebApi(); addToMacrotask('setTimeout callback');}},
+  { code:3, action:()=>addToCallStack('Promise.resolve()') },
+  { code:3, action:()=>{removeFromCallStack(); addToMicrotask('Promise callback');}},
+  { code:4, action:()=>addToCallStack('console.log("3. End sync")') },
+  { code:4, action:()=>{removeFromCallStack(); addOutput('3. End sync');}},
+  { code:3, action:()=>{addToCallStack('Promise callback'); removeFromMicrotask();}},
+  { code:3, action:()=>{removeFromCallStack(); addOutput('4. Promise');}},
+  { code:2, action:()=>{addToCallStack('setTimeout callback'); removeFromMacrotask();}},
+  { code:2, action:()=>{removeFromCallStack(); addOutput('5. Timeout');}}
+];
+
+let currentStep = -1;
+
+function addToCallStack(t){createItem('callStack','call-stack-item',t);}
+function removeFromCallStack(){removeItem('callStack');}
+function addToWebApi(t){createItem('webApi','web-api-item',t);}
+function removeFromWebApi(){removeItem('webApi');}
+function addToMicrotask(t){createItem('microtask','microtask-item',t);}
+function removeFromMicrotask(){removeItem('microtask');}
+function addToMacrotask(t){createItem('macrotask','macrotask-item',t);}
+function removeFromMacrotask(){removeItem('macrotask');}
+
+function createItem(id,cls,text){
+  const el=document.createElement('div');
+  el.className='stack-item '+cls;
+  el.textContent=text;
+  document.getElementById(id).appendChild(el);
+}
+
+function removeItem(id){
+  const items=document.getElementById(id).querySelectorAll('.stack-item');
+  if(items.length>0) items[items.length-1].remove();
+}
+
+function addOutput(text){
+  const line=document.createElement('div');
+  line.className='output-line';
+  line.textContent=text;
+  document.getElementById('output').appendChild(line);
+}
+
+function highlightCode(stepIndex){
+  document.querySelectorAll('.code-line').forEach(line=>{
+    const s=parseInt(line.dataset.step);
+    line.classList.remove('active','executed');
+    if(s===stepIndex) line.classList.add('active');
+    else if(s<stepIndex) line.classList.add('executed');
+  });
+}
+
+document.getElementById('nextBtn').onclick=()=>{
+  currentStep++;
+  if(currentStep<steps.length){
+    steps[currentStep].action();
+    highlightCode(steps[currentStep].code);
+  }
+};
+
+document.getElementById('resetBtn').onclick=()=>{
+  currentStep=-1;
+  ['callStack','webApi','microtask','macrotask','output']
+    .forEach(id=>document.getElementById(id).innerHTML='');
+  document.querySelectorAll('.code-line')
+    .forEach(l=>l.classList.remove('active','executed'));
+};
+</script>
+
+</body>
+</html>
